@@ -1,0 +1,10 @@
+python network.py --nruns 108 --corr 0.05 --max 1.08  --group feedforward  --strength 0    --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 1.17  --group strength01   --strength 0.01 --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 1.24  --group strength02   --strength 0.02 --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 1.38  --group strength03   --strength 0.03 --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 1.53  --group strength05   --strength 0.05 --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 2.31  --group strength10   --strength 0.10 --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 4.10  --group strength20   --strength 0.2  --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 5.98  --group strength30   --strength 0.3  --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 9.30  --group strength50   --strength 0.5  --seed 0 --eps 0.2 --repeats 10
+python network.py --nruns 108 --corr 0.05 --max 16.53 --group strength100  --strength 1    --seed 0 --eps 0.2 --repeats 10
