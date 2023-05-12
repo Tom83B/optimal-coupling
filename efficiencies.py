@@ -1,3 +1,11 @@
+"""
+This code calculates the efficiencies for different values of P_ext (xc)
+from the simulation results
+
+Change the constant ADJUST_REST to True to make the resting cost
+independent of the coupling strength (group).
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
@@ -6,6 +14,7 @@ import warnings
 
 from utils import get_info, load_data, get_costs, group2cond, groups
 
+ADJUST_REST = False
 
 if __name__ == '__main__':
     groups = ['feedforward','strength01','strength02','strength03','strength05',
@@ -28,11 +37,12 @@ if __name__ == '__main__':
             else:
                 cond = float(group.replace("strength","")) / 100
 
-            info_res = get_info(xc, group, exact=True, full_res=True,
-                                max_output=40000, eps=1e-4, rest_cost=ff_rest)
-
-            # info_res = get_info(xc, group, exact=True, full_res=True,
-            #                     max_output=40000, eps=1e-4, rest_cost=ff_rest)
+            if ADUST_REST:
+                info_res = get_info(xc, group, exact=True, full_res=True,
+                                    max_output=40000, eps=1e-4, rest_cost=ff_rest)
+            else:
+                info_res = get_info(xc, group, exact=True, full_res=True,
+                                    max_output=40000, eps=1e-4)
             
             info, info_cost = info_res['fun'], info_res['expense']
             eff_dict[xc][cond] = info / info_cost

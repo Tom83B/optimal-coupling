@@ -1,3 +1,9 @@
+"""
+Runs the network with given parameters.
+Saves the spike counts at different trials and the average Na current magnituted
+for different stimuli
+"""
+
 from brian2 import *
 import numpy as np
 from tqdm import tqdm

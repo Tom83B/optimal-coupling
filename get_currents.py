@@ -1,3 +1,7 @@
+"""
+This script runs the simulation and saves the average synaptic currents.
+"""
+
 from brian2 import *
 import numpy as np
 from tqdm import tqdm
