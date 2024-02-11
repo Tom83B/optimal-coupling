@@ -14,7 +14,7 @@ import warnings
 
 from utils import get_info, load_data, get_costs, group2cond, groups
 
-ADJUST_REST = False
+ADJUST_REST = True
 
 if __name__ == '__main__':
     groups = ['feedforward','strength01','strength02','strength03','strength05',
@@ -37,7 +37,7 @@ if __name__ == '__main__':
             else:
                 cond = float(group.replace("strength","")) / 100
 
-            if ADUST_REST:
+            if ADJUST_REST:
                 info_res = get_info(xc, group, exact=True, full_res=True,
                                     max_output=40000, eps=1e-4, rest_cost=ff_rest)
             else:
@@ -49,4 +49,4 @@ if __name__ == '__main__':
             res_dict[xc][cond] = info_res
             
     pickle.dump((eff_dict, res_dict),
-            open( f"data/jk_optimized_restequal_polyfunc.p", "wb" ) )
+            open( f"data/jk_optimized_AP_4_adjrest.p", "wb" ) )

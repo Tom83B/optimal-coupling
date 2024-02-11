@@ -1,15 +1,15 @@
 import numpy as np
-from brian2.units import *
-from scipy.stats import lognorm
+# from brian2.units import *
+from scipy.stats import lognorm, norm
 from scipy.interpolate import UnivariateSpline
-from optimization import slsqpopt, cuttingplane, blahut_arimoto, jimbokunisawa
+from optimization import slsqpopt, blahut_arimoto, jimbokunisawa
 import pickle
 import warnings
 import os
 from matplotlib.pyplot import get_cmap
 
 ELEMENTARY_CHARGE = 1.6e-19
-AP_COST = 0.125e9*5
+AP_COST = 0.125e9*4
 
 groups = ['feedforward','strength01','strength02','strength03','strength05','strength10',
               'strength20','strength30','strength50','strength100']
@@ -123,7 +123,17 @@ def connection_matrix_RS_FS(p_RS_RS=0.15, p_RS_FS=0.4, p_FS=0.5, xc=0.2, fix_syn
 #     return counts_all
 
 def fisher_prob(xx, yy, dyx, fanos, cost_func=None, lamw=0):
-    F = dyx/(yy*fanos)
+    F = dyx**2/(yy*fanos)
+    
+    if cost_func is not None:
+        prob = np.sqrt(F)*np.exp(-lamw*cost_func(xx))
+    else:
+        prob = np.sqrt(F)
+    
+    return prob / prob.sum()
+
+def fisher_prob_var(xx, yy, dyx, varns, cost_func=None, lamw=0):
+    F = dyx**2 / varns
     
     if cost_func is not None:
         prob = np.sqrt(F)*np.exp(-lamw*cost_func(xx))
@@ -171,6 +181,26 @@ def get_sr_grid(xx_input, mean_func, fffunc, min_output=0, max_output=40000):
         
     fyx = np.array(fyx)
     return fyx
+    
+
+def get_sr_grid_var(xx_input, mean_func, var_func, min_output=0, max_output=40000):
+    outputs = np.arange(max_output)
+    fyx = []
+    
+    mask = (mean_func(xx_input) >= min_output)
+    xx_input = xx_input[mask]
+
+    for x, mean, var in zip(xx_input, mean_func(xx_input), var_func(xx_input)):
+        probs = norm.pdf(outputs, loc=mean, scale=np.sqrt(var))*(outputs[1]-outputs[0])
+        probs = probs / probs.sum()
+        
+        if probs.sum() != probs.sum():
+            import pdb; pdb.set_trace()
+            
+        fyx.append(probs)
+        
+    fyx = np.array(fyx)
+    return fyx
 
 
 def group_color(group):
@@ -194,7 +224,7 @@ def polyfunc(xx, yy, deg, deriv=False, **kwargs):
     return UnivariateSpline(xx_new, yy_fit, s=0, k=1)
     
 
-def information(input_prob, xx_input, mean_func, fffunc, cost_func, min_output=0, max_output=1e6):
+def information(input_prob, xx_input, mean_func, var_func, cost_func, min_output=0, max_output=1e6):
 # #     prob = np.sqrt(F)*np.exp(-lamw*f(np.log(xx_input)))
 # #     outputs = np.linspace(0, 25*800, 1000)
 #     outputs = np.arange(25*800)
@@ -220,7 +250,7 @@ def information(input_prob, xx_input, mean_func, fffunc, cost_func, min_output=0
 #     #     qy += p*lognorm.pdf(outputs, s=s, scale=scale)
 #         fyx.append(lognorm.pdf(outputs, s=s, scale=scale)*(outputs[1]-outputs[0]))
         
-    fyx = get_sr_grid(xx_input, mean_func, fffunc, min_output=min_output)
+    fyx = get_sr_grid_var(xx_input, mean_func, var_func, min_output=min_output)
     
     if len(input_prob.shape) == 1:
         input_prob = input_prob[mask]
@@ -372,35 +402,53 @@ def get_info(xc, group, divisive=0, currents=None, exact=False, max_output=30000
     cost_func = UnivariateSpline(intensities, costs, k=1, s=0, ext=3)
 
     # tot_counts = exc_counts.sum(axis=2)
-    fanos = tot_counts.var(axis=0) / tot_counts.mean(axis=0)
+    varns = tot_counts.var(axis=0)
+    fanos = varns / tot_counts.mean(axis=0)
     
     w = 1 / fanos ** 2
     
     means = tot_counts.mean(axis=0)
 
     f = UnivariateSpline(intensities, means, k=1, s=0, ext=3)
+    # f = polyfunc(intensities, means, deg=7, w=w)
     xx = np.linspace(intensities[0], intensities[-1], 1000)
     dx = xx[1] - xx[0]
     yy = f(xx)
     yy_func = UnivariateSpline(xx, f(xx), k=1, s=0)
-    dyx = f(xx) / dx
+    # df = polyfunc(intensities, means, deg=7, w=w, deriv=True)
+    df = f.derivative()
+    # dyx = f(xx) / dx
+    dyx = df(xx)
 
     # fffunc = UnivariateSpline(tot_counts.mean(axis=0)[last_zero:], savgol_filter(fanos, window_length=3, polyorder=2)[last_zero:], k=1, s=0, ext=3)
     # fffunc = UnivariateSpline(intensities, fanos, k=1, s=0, ext=3)
     fano_func = polyfunc(means, fanos, 7, w=w)
     fffunc = lambda x: fano_func(f(x))
+    var_func = UnivariateSpline(intensities, varns, k=1, s=0)
 
     if exact is False:
         ips = []
+        
+        # fisher = df(intensities)**2 / varns
+        # fisher_func = UnivariateSpline(intensities, fisher, k=1, s=0)
+        # fisher_full = fisher_func(xx)
+        
+        fisher_full = df(xx)**2 / var_func(xx)
+        
         for lamw in np.logspace(-5, -1, 30):
-            input_prob = fisher_prob(xx, yy, dyx, fffunc(yy), cost_func, lamw=lamw)
+            # input_prob = fisher_prob(xx, yy, dyx, fffunc(xx), cost_func, lamw=lamw)
+            input_prob = np.sqrt(fisher_full) * np.exp(-lamw*cost_func(xx))
+            input_prob = input_prob / input_prob.sum()
+            
             ips.append(input_prob)
 
-        infos, info_costs = information(np.array(ips), xx, yy_func, fffunc, cost_func, min_output=min_output)
+        # infos, info_costs = information(np.array(ips), xx, yy_func, fffunc, cost_func, min_output=min_output)
+        infos, info_costs = information(np.array(ips), xx, f, var_func, cost_func, min_output=min_output)
 
         return np.array([infos, info_costs])
     else:
-        sr_grid = get_sr_grid(xx, yy_func, fffunc, min_output=min_output, max_output=max_output)
+        # sr_grid = get_sr_grid(xx, yy_func, fffunc, min_output=min_output, max_output=max_output)
+        sr_grid = get_sr_grid_var(xx, f, var_func, min_output=min_output, max_output=max_output)
         info_res = jimbokunisawa.optimize(sr_grid, eps=eps, verbose=True,
                                           expense=cost_func(xx)[len(xx)-sr_grid.shape[0]:])
         
